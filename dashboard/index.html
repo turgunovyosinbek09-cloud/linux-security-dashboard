@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux Security Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            background-color: #0d1117;
+            color: #c9d1d9;
+            font-family: 'Courier New', monospace;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            padding: 30px;
+            border-bottom: 1px solid #30363d;
+            margin-bottom: 30px;
+        }
+
+        header h1 {
+            color: #58a6ff;
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            color: #8b949e;
+            font-size: 0.9em;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .card h2 {
+            color: #58a6ff;
+            font-size: 1em;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #30363d;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card .value {
+            font-size: 1.8em;
+            color: #3fb950;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .card .label {
+            color: #8b949e;
+            font-size: 0.8em;
+        }
+
+        .status-ok { color: #3fb950; }
+        .status-warn { color: #d29922; }
+        .status-bad { color: #f85149; }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #21262d;
+            font-size: 0.9em;
+        }
+
+        .info-row:last-child { border-bottom: none; }
+        .info-row .key { color: #8b949e; }
+        .info-row .val { color: #c9d1d9; }
+
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            padding: 20px;
+            color: #8b949e;
+            font-size: 0.8em;
+            border-top: 1px solid #30363d;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75em;
+            background-color: #1f6feb;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>&#x1F6E1; Linux Security Dashboard</h1>
+    <p>System monitoring and security audit tool | Ubuntu Linux</p>
+    <p style="margin-top:8px; font-size:0.8em;">
+        Built with Apache &bull; MySQL &bull; Bash Scripting
+    </p>
+</header>
+
+<div class="grid">
+
+    <div class="card">
+        <h2>&#x1F4BB; System Info</h2>
+        <div class="info-row">
+            <span class="key">Hostname</span>
+            <span class="val">Yosinbek-PC</span>
+        </div>
+        <div class="info-row">
+            <span class="key">OS</span>
+            <span class="val">Ubuntu 24.04 LTS</span>
+        </div>
+        <div class="info-row">
+            <span class="key">IP Address</span>
+            <span class="val">172.31.219.21</span>
+        </div>
+        <div class="info-row">
+            <span class="key">Web Server</span>
+            <span class="val">Apache2</span>
+        </div>
+        <div class="info-row">
+            <span class="key">Database</span>
+            <span class="val">MariaDB</span>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>&#x2764; System Health</h2>
+        <div class="info-row">
+            <span class="key">Disk Usage</span>
+            <span class="val status-ok">2% used</span>
+        </div>
+        <div class="info-row">
+            <span class="key">Memory</span>
+            <span class="val status-ok">603MB / 7.6GB</span>
+        </div>
+        <div class="info-row">
+            <span class="key">Swap</span>
+            <span class="val status-ok">0B / 2GB</span>
+        </div>
+        <div class="info-row">
+            <span class="key">Top Process</span>
+            <span class="val">systemd-journald</span>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>&#x1F464; User Audit</h2>
+        <div class="info-row">
+            <span class="key">Login Users</span>
+            <span class="val">root, yosin</span>
+        </div>
+        <div class="info-row">
+            <span class="key">Sudo Members</span>
+            <span class="val status-warn">yosin</span>
+        </div>
+        <div class="info-row">
+            <span class="key">Root Account</span>
+            <span class="val status-ok">Locked</span>
+        </div>
+        <div class="info-row">
+            <span class="key">Failed Logins</span>
+            <span class="val status-ok">0</span>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>&#x1F6E1; Security Status</h2>
+        <div class="info-row">
+            <span class="key">Apache</span>
+            <span class="val status-ok">&#x2713; Running</span>
+        </div>
+        <div class="info-row">
+            <span class="key">MySQL</span>
+            <span class="val status-ok">&#x2713; Running</span>
+        </div>
+        <div class="info-row">
+            <span class="key">SSH</span>
+            <span class="val status-ok">&#x2713; Running</span>
+        </div>
+        <div class="info-row">
+            <span class="key">Logging</span>
+            <span class="val status-ok">&#x2713; Active</span>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>&#x1F4DD; Scripts</h2>
+        <div class="info-row">
+            <span class="key">healthcheck.sh</span>
+            <span class="badge">active</span>
+        </div>
+        <div class="info-row">
+            <span class="key">useraudit.sh</span>
+            <span class="badge">active</span>
+        </div>
+        <div class="info-row">
+            <span class="key">logmonitor.sh</span>
+            <span class="badge">active</span>
+        </div>
+        <div class="info-row">
+            <span class="key">backup.sh</span>
+            <span class="badge">active</span>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>&#x1F4CA; Project Info</h2>
+        <div class="info-row">
+            <span class="key">Author</span>
+            <span class="val">Yosin Turgunov</span>
+        </div>
+        <div class="info-row">
+            <span class="key">GitHub</span>
+            <span class="val">turgunovyosinbek09-cloud</span>
+        </div>
+        <div class="info-row">
+            <span class="key">Goal</span>
+            <span class="val">AWS Cloud Security</span>
+        </div>
+        <div class="info-row">
+            <span class="key">Stack</span>
+            <span class="val">Apache, MySQL, Bash</span>
+        </div>
+    </div>
+
+</div>
+
+<footer>
+    <p>Linux Security Dashboard &bull; Built by Yosin Turgunov</p>
+    <p style="margin-top:5px;">
+        github.com/turgunovyosinbek09-cloud/linux-security-dashboard
+    </p>
+</footer>
+
+</body>
+</html>
