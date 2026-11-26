@@ -1,7 +1,6 @@
 #!/bin/bash
 # ============================================
 # Linux Security Dashboard - Data Generator
-# Collects live system data and builds HTML
 # ============================================
 
 OUTPUT=/var/www/html/index.html
@@ -21,11 +20,12 @@ SWAP_USED=$(free -h | awk 'NR==3 {print $3}')
 SWAP_TOTAL=$(free -h | awk 'NR==3 {print $2}')
 TOP_PROC=$(ps aux --sort=-%cpu | awk 'NR==2 {print $11}' | xargs basename)
 TOP_CPU=$(ps aux --sort=-%cpu | awk 'NR==2 {print $3}')
-LOGIN_USERS=$(grep -E "/bin/bash|/bin/zsh" /etc/passwd | cut -d: -f1 | tr '\n' ', ' | sed 's/,$//')
+LOGIN_USERS=$(grep -E "/bin/bash|/bin/zsh" /etc/passwd | cut -d: -f1 | tr '\n' ',' | sed 's/,$//')
 SUDO_MEMBERS=$(grep "^sudo" /etc/group | cut -d: -f4)
-FAILED_LOGINS=$(grep -c "Failed password" /var/log/auth.log 2>/dev/null | head -1 || echo "0")
+FAILED_NUM=$(grep -c "Failed password" /var/log/auth.log 2>/dev/null | head -1 || echo "0")
+FAILED_NUM=${FAILED_NUM:-0}
 
-# Check root account status
+# Check root status
 if sudo grep -q "^root:!" /etc/shadow 2>/dev/null || sudo grep -q "^root:\*" /etc/shadow 2>/dev/null; then
     ROOT_STATUS="Locked"
     ROOT_COLOR="#3fb950"
@@ -36,15 +36,15 @@ fi
 
 # Check services
 check_service() {
-    if systemctl is-active --quiet $1 2>/dev/null || service $1 status >/dev/null 2>&1; then
-        echo "&#x2713; Running"
+    if systemctl is-active --quiet $1 2>/dev/null; then
+        echo "Running"
     else
-        echo "&#x2717; Stopped"
+        echo "Stopped"
     fi
 }
 
-check_service_color() {
-    if systemctl is-active --quiet $1 2>/dev/null || service $1 status >/dev/null 2>&1; then
+check_color() {
+    if systemctl is-active --quiet $1 2>/dev/null; then
         echo "#3fb950"
     else
         echo "#f85149"
@@ -52,15 +52,15 @@ check_service_color() {
 }
 
 APACHE_STATUS=$(check_service apache2)
-APACHE_COLOR=$(check_service_color apache2)
+APACHE_COLOR=$(check_color apache2)
 MYSQL_STATUS=$(check_service mysql)
-MYSQL_COLOR=$(check_service_color mysql)
+MYSQL_COLOR=$(check_color mysql)
 SSH_STATUS=$(check_service ssh)
-SSH_COLOR=$(check_service_color ssh)
+SSH_COLOR=$(check_color ssh)
 RSYSLOG_STATUS=$(check_service rsyslog)
-RSYSLOG_COLOR=$(check_service_color rsyslog)
+RSYSLOG_COLOR=$(check_color rsyslog)
 
-# Disk color based on usage
+# Disk color
 DISK_NUM=$(echo $DISK | tr -d '%')
 if [ "$DISK_NUM" -lt 60 ]; then
     DISK_COLOR="#3fb950"
@@ -71,8 +71,6 @@ else
 fi
 
 # Failed logins color
-FAILED_NUM=$(echo "$FAILED_LOGINS" | grep -o '[0-9]*' | head -1)
-FAILED_NUM=${FAILED_NUM:-0}
 if [ "$FAILED_NUM" -eq 0 ]; then
     FAILED_COLOR="#3fb950"
 elif [ "$FAILED_NUM" -lt 10 ]; then
@@ -80,11 +78,39 @@ elif [ "$FAILED_NUM" -lt 10 ]; then
 else
     FAILED_COLOR="#f85149"
 fi
-FAILED_LOGINS=$FAILED_NUM
+
+# ---- Log to MySQL ----
+APACHE_DB=$(systemctl is-active apache2 2>/dev/null || echo "stopped")
+MYSQL_DB=$(systemctl is-active mysql 2>/dev/null || echo "stopped")
+SSH_DB=$(systemctl is-active ssh 2>/dev/null || echo "stopped")
+
+sudo mysql -u root security_dashboard -e "
+INSERT INTO system_logs (logged_at, disk_usage, memory_used, failed_logins, apache_status, mysql_status, ssh_status)
+VALUES (NOW(), '$DISK', '$MEM_USED', '$FAILED_NUM', '$APACHE_DB', '$MYSQL_DB', '$SSH_DB');
+" 2>/dev/null
+
+# ---- Get last 5 log entries from MySQL ----
+TABLE_ROWS=""
+while IFS=$'\t' read -r logged_at disk mem failed apache ssh; do
+    if [ "$failed" -gt 0 ] 2>/dev/null; then
+        FAILED_STYLE="color:#f85149"
+    else
+        FAILED_STYLE="color:#3fb950"
+    fi
+    TABLE_ROWS="${TABLE_ROWS}<tr>
+        <td style='padding:8px;'>$logged_at</td>
+        <td style='padding:8px; color:#3fb950'>$disk</td>
+        <td style='padding:8px;'>$mem</td>
+        <td style='padding:8px; $FAILED_STYLE'>$failed</td>
+        <td style='padding:8px; color:#3fb950'>$apache</td>
+        <td style='padding:8px; color:#3fb950'>$ssh</td>
+    </tr>"
+done < <(sudo mysql security_dashboard -e "SELECT logged_at, disk_usage, memory_used, failed_logins, apache_status, ssh_status FROM system_logs ORDER BY id DESC LIMIT 5;" 2>/dev/null | tail -n +2)
 
 # ---- Generate HTML ----
-sudo tee $OUTPUT > /dev/null << HTML
-<!DOCTYPE html><html lang="en">
+sudo tee $OUTPUT > /dev/null << HTMLEOF
+<!DOCTYPE html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -153,6 +179,14 @@ sudo tee $OUTPUT > /dev/null << HTML
             background-color: #1f6feb;
             color: white;
         }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
+        th {
+            text-align: left;
+            padding: 8px;
+            color: #58a6ff;
+            border-bottom: 1px solid #30363d;
+        }
+        tr:nth-child(even) { background-color: #0d1117; }
         footer {
             text-align: center;
             margin-top: 40px;
@@ -240,7 +274,7 @@ sudo tee $OUTPUT > /dev/null << HTML
         </div>
         <div class="info-row">
             <span class="key">Failed Logins</span>
-            <span style="color:$FAILED_COLOR">$FAILED_LOGINS</span>
+            <span style="color:$FAILED_COLOR">$FAILED_NUM</span>
         </div>
     </div>
 
@@ -248,11 +282,11 @@ sudo tee $OUTPUT > /dev/null << HTML
         <h2>&#x1F6E1; Security Status</h2>
         <div class="info-row">
             <span class="key">Apache</span>
-            <span style="color:$APACHE_COLOR">$APACHE_STATUS</span>
+            <span style="color:$APACHE_COLOR">&#x2713; $APACHE_STATUS</span>
         </div>
         <div class="info-row">
             <span class="key">MySQL</span>
-            <span style="color:$MYSQL_COLOR">$MYSQL_STATUS</span>
+            <span style="color:$MYSQL_COLOR">&#x2713; $MYSQL_STATUS</span>
         </div>
         <div class="info-row">
             <span class="key">SSH</span>
@@ -304,6 +338,28 @@ sudo tee $OUTPUT > /dev/null << HTML
         </div>
     </div>
 
+    <div class="card" style="grid-column: 1/-1;">
+        <h2>&#x1F4CA; Recent System Logs (MySQL)</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>Disk</th>
+                    <th>Memory</th>
+                    <th>Failed Logins</th>
+                    <th>Apache</th>
+                    <th>SSH</th>
+                </tr>
+            </thead>
+            <tbody>
+                $TABLE_ROWS
+            </tbody>
+        </table>
+        <p style="color:#8b949e; font-size:0.75em; margin-top:10px;">
+            Last 5 entries from security_dashboard.system_logs
+        </p>
+    </div>
+
 </div>
 
 <footer>
@@ -311,13 +367,11 @@ sudo tee $OUTPUT > /dev/null << HTML
     <p style="margin-top:5px;">
         github.com/turgunovyosinbek09-cloud/linux-security-dashboard
     </p>
-    <p style="margin-top:5px; font-size:0.75em;">
-        Auto-refreshes every 60 seconds
-    </p>
+    <p style="margin-top:5px; font-size:0.75em;">Auto-refreshes every 60 seconds</p>
 </footer>
 
 </body>
 </html>
-HTML
+HTMLEOF
 
 echo "Dashboard generated at $DATE"
